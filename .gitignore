@@ -1,0 +1,17 @@
+# Secrets — NEVER commit
+.env
+*.pem
+*.key
+
+# Build artifacts
+backend/target/
+dashboard_v2/node_modules/
+dashboard_v2/dist/
+
+# Config with secrets
+runtime_config.json
+standalone_config.json
+
+# OS
+.DS_Store
+Thumbs.db
