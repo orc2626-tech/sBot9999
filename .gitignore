@@ -7,6 +7,7 @@
 backend/target/
 dashboard_v2/node_modules/
 dashboard_v2/dist/
+*.rlib
 
 # Config with secrets
 runtime_config.json
