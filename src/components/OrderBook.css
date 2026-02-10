@@ -1,0 +1,145 @@
+.order-book {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-book-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-book-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.order-book-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-color.bid {
+  background: var(--green);
+}
+
+.legend-color.ask {
+  background: var(--red);
+}
+
+.order-book-labels {
+  padding: 12px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-book-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.asks, .bids {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-row {
+  padding: 6px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-size: 13px;
+  font-weight: 500;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.order-row:hover {
+  background: var(--bg-hover);
+}
+
+.volume-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  opacity: 0.1;
+  transition: width 0.3s ease;
+}
+
+.volume-bar.bid {
+  background: var(--green);
+}
+
+.volume-bar.ask {
+  background: var(--red);
+}
+
+.order-row.bid .price {
+  color: var(--green);
+}
+
+.order-row.ask .price {
+  color: var(--red);
+}
+
+.amount, .total {
+  color: var(--text-secondary);
+}
+
+.spread {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-hover);
+  margin: 8px 0;
+}
+
+.spread-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.spread-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.loading-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
