@@ -387,6 +387,7 @@ impl AppState {
             cusum: config.enable_cusum,
             absorption: config.enable_absorption,
             entropy_valley: config.enable_entropy_valley,
+            micro_trail: config.enable_micro_trail,
         });
 
         StateSnapshot {
@@ -618,6 +619,7 @@ pub struct FeatureFlagsSnapshot {
     pub cusum: bool,
     pub absorption: bool,
     pub entropy_valley: bool,
+    pub micro_trail: bool,
 }
 
 /// Trade journal aggregate statistics.

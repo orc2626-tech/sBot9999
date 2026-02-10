@@ -37,6 +37,8 @@ use tracing_subscriber::EnvFilter;
 
 use crate::app_state::AppState;
 use crate::execution::ExecutionEngine;
+use crate::exit::micro_trail::MicroTrailState;
+use crate::exit::triple_barrier::{BarrierConfig, BarrierState};
 use crate::runtime_config::RuntimeConfig;
 use crate::strategy::StrategyEngine;
 use crate::types::AccountMode;
@@ -188,9 +190,15 @@ async fn main() -> anyhow::Result<()> {
         state.risk_engine.clone(),
     ));
 
+    // ── Shared exit state (used by both strategy loop and exit monitor) ──
+    let barrier_states = exit::monitor::new_barrier_states();
+    let micro_trail_states = exit::monitor::new_micro_trail_states();
+
     // ── 7. Strategy loop (every 5 seconds) ───────────────────────────────
     let strat_state = state.clone();
     let strat_exec = exec_engine.clone();
+    let strat_barriers = barrier_states.clone();
+    let strat_trails = micro_trail_states.clone();
     tokio::spawn(async move {
         // Wait for initial data
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
@@ -223,48 +231,82 @@ async fn main() -> anyhow::Result<()> {
                         )
                         .await;
                     info!(symbol = %prop.symbol, side = %prop.side, result = %result, "trade execution result");
+
+                    // Create exit management state for the new position.
+                    if matches!(result, crate::execution::ExecutionResult::Simulated(_) | crate::execution::ExecutionResult::Placed(_)) {
+                        // Find the position ID (just opened — last in the list).
+                        let open = strat_state.position_manager.get_open_positions();
+                        if let Some(pos) = open.iter().rev().find(|p| p.symbol == prop.symbol) {
+                            let now_secs = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+
+                            // ATR pct for barrier config.
+                            let atr_pct = if prop.entry_price > 0.0 {
+                                ((prop.stop_loss - prop.entry_price).abs() / prop.entry_price) * 100.0
+                            } else {
+                                0.5
+                            };
+
+                            // Create BarrierState.
+                            let barrier_config = BarrierConfig::from_atr(atr_pct, &prop.regime);
+                            let barrier = BarrierState::new(barrier_config, prop.entry_price, &prop.side, now_secs);
+                            strat_barriers.write().insert(pos.id.clone(), barrier);
+
+                            // Create MicroTrailState.
+                            let atr_price_units = (prop.stop_loss - prop.entry_price).abs();
+                            let mut micro = MicroTrailState::new(
+                                prop.side == "BUY",
+                                prop.entry_price,
+                                prop.take_profit_1,
+                                atr_price_units,
+                            );
+                            // Capture CVD at entry time for divergence detection.
+                            let cvd_at_entry = strat_state.trade_processors.read()
+                                .get(&prop.symbol)
+                                .map(|tp| tp.cvd())
+                                .unwrap_or(0.0);
+                            micro.set_cvd_at_entry(cvd_at_entry);
+                            strat_trails.write().insert(pos.id.clone(), micro);
+
+                            info!(
+                                position_id = %pos.id,
+                                symbol = %prop.symbol,
+                                "BarrierState + MicroTrailState created for new position"
+                            );
+                        }
+                    }
                 }
             }
         }
     });
 
-    // ── 8. Exit monitor loop ─────────────────────────────────────────────
+    // ── 8. Exit monitor loop (triple barrier + micro-trail) ──────────────
     let exit_state = state.clone();
+    let exit_barriers = barrier_states.clone();
+    let exit_trails = micro_trail_states.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-        loop {
-            interval.tick().await;
-
-            // Update prices
-            let open_positions = exit_state.position_manager.get_open_positions();
-            for pos in &open_positions {
-                let procs = exit_state.trade_processors.read();
-                if let Some(tp) = procs.get(&pos.symbol) {
-                    let price = tp.last_price();
-                    if price > 0.0 {
-                        exit_state.position_manager.update_price(&pos.symbol, price);
+        // Price-update loop runs alongside the barrier/trail monitor.
+        let price_state = exit_state.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+            loop {
+                interval.tick().await;
+                let open_positions = price_state.position_manager.get_open_positions();
+                for pos in &open_positions {
+                    let procs = price_state.trade_processors.read();
+                    if let Some(tp) = procs.get(&pos.symbol) {
+                        let price = tp.last_price();
+                        if price > 0.0 {
+                            price_state.position_manager.update_price(&pos.symbol, price);
+                        }
                     }
                 }
             }
+        });
 
-            // Check exits
-            let exits = exit_state.position_manager.check_exits();
-            for (position_id, reason) in exits {
-                let open = exit_state.position_manager.get_open_positions();
-                if let Some(pos) = open.iter().find(|p| p.id == position_id) {
-                    let close_price = pos.current_price;
-                    if let Some(pnl) = exit_state.position_manager.close_position(
-                        &position_id,
-                        &reason,
-                        close_price,
-                    ) {
-                        exit_state.risk_engine.record_trade_result(pnl);
-                        exit_state.increment_version();
-                        info!(position_id = %position_id, reason = %reason, pnl, "position exited");
-                    }
-                }
-            }
-        }
+        exit::monitor::run_exit_monitor(exit_state, exit_barriers, exit_trails).await;
     });
 
     // ── 9. Reconciliation loop ───────────────────────────────────────────

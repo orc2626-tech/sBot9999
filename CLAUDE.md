@@ -69,7 +69,8 @@ backend/src/
 ├── app_state.rs           # Shared application state + all trackers
 ├── exit/
 │   ├── triple_barrier.rs  # Triple Barrier exit management (TP/SL/Time)
-│   └── monitor.rs         # Exit monitor loop (every 5s)
+│   ├── micro_trail.rs     # Micro-Trail + Order Flow Adaptive Exit (Phase 3)
+│   └── monitor.rs         # Exit monitor loop (every 5s, barrier + micro-trail)
 ├── arena/
 │   ├── bridge.rs          # Shadow-to-Live bridge (DTS profile selection)
 │   ├── profile.rs         # Strategy profiles (Momentum/MeanRevert/Breakout/Scalp)
@@ -119,8 +120,9 @@ dashboard_v2/src/
  8. decision_envelope.rs packages everything with full audit trail
  9. strategy.rs makes final BUY/SELL/HOLD decision
 10. execution.rs executes on Binance (paper or live)
-11. exit/monitor.rs manages exits: Profit Lock, Triple Barrier, Standard SL/TP
-12. risk.rs monitors position and enforces circuit breakers
+11. exit/monitor.rs manages exits: Profit Lock, Triple Barrier, Micro-Trail
+12. exit/micro_trail.rs: phased ATR trail + CVD/VPIN/OB adaptive tightening
+13. risk.rs monitors position and enforces circuit breakers
 ```
 
 ---
@@ -166,6 +168,9 @@ Current flags (Phase 2 — Offensive):
   enable_cusum:               true  — CUSUM structural break detection
   enable_absorption:          true  — Institutional absorption detection
   enable_entropy_valley:      true  — Entropy Valley confidence booster
+
+Current flags (Phase 3 — Exit Intelligence):
+  enable_micro_trail:         false — Micro-Trail + Order Flow Adaptive Exit
 ```
 
 New features MUST follow this pattern:
@@ -210,6 +215,20 @@ When CUSUM detects a bullish break but HTF is still bearish (EMA lag):
 
 ### Profit Lock:
 When price reaches 50% of TP1 distance, SL moves to breakeven + 0.05%
+
+### Micro-Trail + Order Flow Adaptive Exit (Phase 3):
+Replaces fixed 0.5% trailing stop with ATR-calibrated, microstructure-aware trail:
+- **Phased Trail Distance** (based on profit fraction of TP1):
+  - Loose (0-30% of TP1): 1.5× ATR — let the trade breathe
+  - Standard (30-60% of TP1): 1.0× ATR — balanced protection
+  - Aggressive (60%+ of TP1): 0.5× ATR — lock maximum profit
+- **Order Flow Adaptation** (multiplicative tightening):
+  - CVD divergence against position → tighten 30%
+  - Orderbook imbalance against position → tighten 20%
+  - VPIN toxic (>0.7) → emergency tighten 50%
+- **Velocity Shield**: >0.3% adverse move in 5s → snap trail to current level
+- **Minimum floor**: 0.2% trail distance (never tighter than this)
+- **Feature flag**: `enable_micro_trail` (default: OFF)
 
 ---
 
@@ -271,7 +290,9 @@ HTF Trend Gate, Score Momentum, OFIP, Adaptive Threshold, Entropy Graduated
 ### Phase 2 (Complete): Offensive Layer
 CUSUM Break Detection, Absorption Detection, Entropy Valley, CUSUM×HTF Soft-Block
 
-### Phase 3 (Future): Intelligence Layer
+### Phase 3 (In Progress): Exit Intelligence Layer
+- **Micro-Trail + Order Flow Adaptive Exit** (Complete) — phased ATR trail
+  with CVD/VPIN/orderbook adaptive tightening + velocity shield
 - Bayesian Convergence Filter — probabilistic PASS/FAIL instead of binary
 - Microstructure Momentum — tick-by-tick momentum analysis
 - Cross-Symbol Correlation — exploit BTC→ALT lead-lag relationships

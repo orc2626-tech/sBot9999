@@ -165,6 +165,7 @@ async fn get_feature_flags(
         "cusum": config.enable_cusum,
         "absorption": config.enable_absorption,
         "entropy_valley": config.enable_entropy_valley,
+        "micro_trail": config.enable_micro_trail,
     });
     Json(flags)
 }
@@ -187,6 +188,8 @@ struct FeatureFlagUpdate {
     absorption: Option<bool>,
     #[serde(default)]
     entropy_valley: Option<bool>,
+    #[serde(default)]
+    micro_trail: Option<bool>,
 }
 
 async fn set_feature_flags(
@@ -221,6 +224,7 @@ async fn set_feature_flags(
     apply_flag!(cusum, enable_cusum);
     apply_flag!(absorption, enable_absorption);
     apply_flag!(entropy_valley, enable_entropy_valley);
+    apply_flag!(micro_trail, enable_micro_trail);
 
     if !changes.is_empty() {
         info!(changes = ?changes, "Feature flags updated");
@@ -245,6 +249,7 @@ async fn set_feature_flags(
             "cusum": config_clone.enable_cusum,
             "absorption": config_clone.enable_absorption,
             "entropy_valley": config_clone.enable_entropy_valley,
+            "micro_trail": config_clone.enable_micro_trail,
         });
         if let Some(obj) = response.as_object_mut() {
             obj.insert(
@@ -263,6 +268,7 @@ async fn set_feature_flags(
             "cusum": config.enable_cusum,
             "absorption": config.enable_absorption,
             "entropy_valley": config.enable_entropy_valley,
+            "micro_trail": config.enable_micro_trail,
         });
         drop(config);
 

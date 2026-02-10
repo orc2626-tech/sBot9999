@@ -6,4 +6,5 @@
 // loop that evaluates all open positions every 5 seconds.
 
 pub mod triple_barrier;
+pub mod micro_trail;
 pub mod monitor;

@@ -302,6 +302,18 @@ export interface EntropyValleyState {
   reason: string;
 }
 
+export interface MicroTrailSnapshot {
+  phase: string;
+  best_price: number;
+  trail_price: number;
+  raw_trail_distance: number;
+  adjusted_trail_distance: number;
+  of_tighten_mult: number;
+  velocity_triggered: boolean;
+  atr_5m: number;
+  adjustment_reason: string;
+}
+
 export interface SmartFilterVerdicts {
   htf?: HtfAnalysis | null;
   score_momentum?: ScoreMomentumState | null;
@@ -313,6 +325,8 @@ export interface SmartFilterVerdicts {
   cusum_htf_interaction?: CusumHtfInteraction | null;
   absorption?: AbsorptionState | null;
   entropy_valley?: EntropyValleyState | null;
+  // Phase 3 — Exit Intelligence
+  micro_trail?: MicroTrailSnapshot | null;
 }
 
 export interface FeatureFlags {
@@ -325,6 +339,8 @@ export interface FeatureFlags {
   cusum: boolean;
   absorption: boolean;
   entropy_valley: boolean;
+  // Phase 3 — Exit Intelligence
+  micro_trail: boolean;
 }
 
 export interface BridgeInfluence {

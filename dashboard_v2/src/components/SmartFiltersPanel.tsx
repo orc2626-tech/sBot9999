@@ -8,7 +8,7 @@
  */
 
 import { useTruthState } from '../hooks/useTruthState'
-import { setFeatureFlags, type HtfAnalysis, type FeatureFlags, type SmartFilterVerdicts, type CusumState, type AbsorptionState } from '../lib/api'
+import { setFeatureFlags, type HtfAnalysis, type FeatureFlags, type SmartFilterVerdicts, type CusumState, type AbsorptionState, type MicroTrailSnapshot } from '../lib/api'
 import { useState } from 'react'
 
 function HtfDirectionBadge({ direction, confidence }: { direction: string; confidence: number }) {
@@ -208,6 +208,19 @@ function SmartFilterVerdictsDisplay({ sf }: { sf: SmartFilterVerdicts }) {
           </span>
         </div>
       )}
+      {sf.micro_trail && (
+        <div className="flex items-center justify-between">
+          <span className="text-text-muted">Micro-Trail:</span>
+          <span className={`font-mono ${
+            sf.micro_trail.phase === 'AGGRESSIVE' ? 'text-red' :
+            sf.micro_trail.phase === 'STANDARD' ? 'text-yellow' : 'text-text-secondary'
+          }`}>
+            {sf.micro_trail.phase}
+            {sf.micro_trail.of_tighten_mult < 1.0 && ` OF×${sf.micro_trail.of_tighten_mult.toFixed(2)}`}
+            {sf.micro_trail.velocity_triggered && ' ⚡SNAP'}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -330,6 +343,19 @@ export default function SmartFiltersPanel() {
             description="Confidence boost when entropy drops from chaos to order"
             enabled={flags.entropy_valley}
             flagKey="entropy_valley"
+            onToggle={handleToggle}
+          />
+          {/* Phase 3 — Exit Intelligence */}
+          <div className="mt-2 pt-2 border-t border-panel-border/50">
+            <div className="text-[10px] font-medium text-purple-400/80 uppercase tracking-wider mb-1">
+              Phase 3 — Exit Intelligence
+            </div>
+          </div>
+          <FeatureFlagToggle
+            label="Micro-Trail + Order Flow"
+            description="ATR-phased trailing stop with CVD/VPIN/OB adaptive tightening"
+            enabled={flags.micro_trail}
+            flagKey="micro_trail"
             onToggle={handleToggle}
           />
         </div>

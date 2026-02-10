@@ -213,6 +213,11 @@ pub struct RuntimeConfig {
     #[serde(default = "default_true")]
     pub enable_entropy_valley: bool,
 
+    /// Micro-Trail + Order Flow Adaptive Exit.
+    /// Default OFF — observation period before enabling.
+    #[serde(default)]
+    pub enable_micro_trail: bool,
+
     // --- Strategy parameters ------------------------------------------------
 
     /// Tunable strategy parameters (SL/TP multipliers, position sizing).
@@ -238,6 +243,7 @@ impl Default for RuntimeConfig {
             enable_cusum: true,
             enable_absorption: true,
             enable_entropy_valley: true,
+            enable_micro_trail: false,
             strategy_params: StrategyParams::default(),
         }
     }
@@ -311,6 +317,7 @@ mod tests {
         assert!(cfg.enable_cusum);
         assert!(cfg.enable_absorption);
         assert!(cfg.enable_entropy_valley);
+        assert!(!cfg.enable_micro_trail); // default OFF
         assert!((cfg.strategy_params.min_sl_pct - 0.4).abs() < f64::EPSILON);
         assert!((cfg.strategy_params.min_tp1_pct - 0.6).abs() < f64::EPSILON);
         assert!((cfg.strategy_params.min_tp2_pct - 1.0).abs() < f64::EPSILON);
